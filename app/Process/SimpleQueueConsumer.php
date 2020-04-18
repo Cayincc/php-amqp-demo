@@ -17,6 +17,8 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class SimpleQueueConsumer extends AbstractProcess
 {
+    public const QUEUE_NAME = 'test_simple_queue';
+
     public function handle(): void
     {
         $logger = $this->container->get(StdoutLoggerInterface::class);
@@ -24,15 +26,12 @@ class SimpleQueueConsumer extends AbstractProcess
         $logger->info('simplequeuec 启动');
 
         $connection = AMQPConnection::getConnection();
-        try {
-            $channel = new AMQPChannel($connection->getConnection());
-        } catch (\Exception $exception) {
-            var_dump($exception);
-        }
 
-        $channel->queue_declare('test_simple_queue', false, false, false,false, false, [], null);
+        $channel = new AMQPChannel($connection->getConnection());
 
-        $channel->basic_consume('test_simple_queue', '', false, false, false, false, function (AMQPMessage $message) use ($logger) {
+        $channel->queue_declare(self::QUEUE_NAME, false, false, false,false, false, [], null);
+
+        $channel->basic_consume(self::QUEUE_NAME, '', false, false, false, false, function (AMQPMessage $message) use ($logger) {
             sleep(1);
             $logger->info('simplequeuec 消费:'.$message->body.'/'.$message->delivery_info['delivery_tag']);
             return $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
@@ -46,5 +45,10 @@ class SimpleQueueConsumer extends AbstractProcess
         $connection->release();
 
         $logger->info('simplequeuec 关闭');
+    }
+
+    public function isEnable(): bool
+    {
+        return true;
     }
 }

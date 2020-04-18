@@ -3,39 +3,42 @@
 namespace App\Utils;
 
 use Hyperf\Amqp\Connection;
-use Hyperf\Amqp\Pool\AmqpConnectionPool;
+use Hyperf\Amqp\Pool\PoolFactory;
 use Hyperf\Utils\ApplicationContext;
+
+/**
+ * Class AMQPConnection
+ * @method static Connection getConnection(string $poolName = 'default');
+ */
 
 class AMQPConnection {
 
-    public static function getConnection()
+    /**
+     * @var \Psr\Container\ContainerInterface
+     */
+    protected $container;
+    /**
+     * @var PoolFactory;
+     */
+    protected $poolFactory;
+
+    public function __construct()
     {
-        $config = [
-            'host' => '192.168.10.10',
-            'port' => 5672,
-            'user' => 'homestead',
-            'password' => 'secret',
-            'vhost' => '/vhost_homestead',
-            'pool' => [
-                'min_connections' => 1,
-                'max_connections' => 10,
-                'connect_timeout' => 10.0,
-                'wait_timeout' => 3.0,
-                'heartbeat' => -1,
-            ],
-            'params' => [
-                'insist' => false,
-                'login_method' => 'AMQPLAIN',
-                'login_response' => null,
-                'locale' => 'en_US',
-                'connection_timeout' => 3.0,
-                'read_write_timeout' => 6.0,
-                'context' => null,
-                'keepalive' => false,
-                'heartbeat' => 3,
-            ],
-        ];
-        $container = ApplicationContext::getContainer();
-        return (new Connection($container, new AmqpConnectionPool($container, 'default'), $config));
+        $this->container = ApplicationContext::getContainer();
+        $this->poolFactory = $this->container->get(PoolFactory::class);
+    }
+
+    public static function __callStatic($name, $arguments)
+    {
+        return (new static)->$name(...$arguments);
+    }
+
+    private function getConnection(string $poolName = 'default'): Connection
+    {
+        $pool = $this->poolFactory->getPool($poolName);
+        /** @var \Hyperf\Amqp\Connection $connection */
+        $connection = $pool->get();
+
+        return $connection;
     }
 }

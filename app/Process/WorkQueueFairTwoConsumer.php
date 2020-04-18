@@ -22,11 +22,7 @@ class WorkQueueFairTwoConsumer extends AbstractProcess
         $logger->info('workqueuefairc2 启动');
         $connection = AMQPConnection::getConnection();
 
-        try {
-            $channel = new AMQPChannel($connection->getConnection());
-        } catch (\Exception $exception) {
-            var_dump($exception);
-        }
+        $channel = new AMQPChannel($connection->getConnection());
 
         $channel->queue_declare('test_work_queue_fair', false, false, false, false, false, [], null);
 
@@ -52,6 +48,6 @@ class WorkQueueFairTwoConsumer extends AbstractProcess
 
     public function isEnable(): bool
     {
-        return true;
+        return false;
     }
 }

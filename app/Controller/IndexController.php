@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Constants\ErrorCode;
 use App\Utils\AMQPConnection;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use PhpAmqpLib\Channel\AMQPChannel;
@@ -32,18 +33,23 @@ class IndexController extends AbstractController
     }
 
     /**
-     *
+     * 简单队列
      *P ---- Queue ---- C
-     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
      */
-    public function simpleSend()
+    public function simpleSend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
     {
         $connection = AMQPConnection::getConnection();
         $cid = \Hyperf\Utils\Coroutine::id();
         try {
             $channel = new AMQPChannel($connection->getConnection());
         } catch (\Exception $exception) {
-            var_dump($exception);
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
         }
 
         $message = new AMQPMessage('hello simple.'.$cid);
@@ -54,6 +60,11 @@ class IndexController extends AbstractController
 
         $channel->close();
         $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '发送成功'
+        ]);
     }
 
     /**
@@ -73,7 +84,10 @@ class IndexController extends AbstractController
         try {
             $channel = new AMQPChannel($connection->getConnection());
         } catch (\Exception $exception) {
-            var_dump($exception);
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
         }
 
 
@@ -113,7 +127,10 @@ class IndexController extends AbstractController
         try {
             $channel = new AMQPChannel($connection->getConnection());
         } catch (\Exception $exception) {
-            var_dump($exception);
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
         }
 
 

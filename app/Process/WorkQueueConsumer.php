@@ -17,21 +17,19 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class WorkQueueConsumer extends AbstractProcess
 {
+    public const QUEUE_NAME = 'test_work_queue';
+
     public function handle(): void
     {
         $logger = $this->container->get(StdoutLoggerInterface::class);
         $logger->info('workqueuec1 启动');
         $connection = AMQPConnection::getConnection();
 
-        try {
-            $channel = new AMQPChannel($connection->getConnection());
-        } catch (\Exception $exception) {
-            var_dump($exception);
-        }
+        $channel = new AMQPChannel($connection->getConnection());
 
-        $channel->queue_declare('test_work_queue', false, false, false,false, false, [], null);
+        $channel->queue_declare(self::QUEUE_NAME, false, false, false,false, false, [], null);
 
-        $channel->basic_consume('test_work_queue', '', false, false, false, false, function (AMQPMessage $message) use ($logger) {
+        $channel->basic_consume(self::QUEUE_NAME, '', false, false, false, false, function (AMQPMessage $message) use ($logger) {
             sleep(1);
             $logger->info('workqueuec1 消费:'.$message->body.'/'.$message->delivery_info['delivery_tag']);
             return $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
