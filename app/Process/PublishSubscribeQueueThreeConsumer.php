@@ -29,7 +29,7 @@ class PublishSubscribeQueueThreeConsumer extends AbstractProcess
         $channel = AMQPConnection::getChannel($connection);
 
         //声明fanout类型交换机
-        $channel->exchange_declare('test_publish_subscribe_exchange', AMQPCode::EXCHANGE_FANOUT, false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
+        $channel->exchange_declare(self::EXCHANGE_NAME, AMQPCode::EXCHANGE_FANOUT, false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
         //声明临时队列
         [$queue_name, ,] = $channel->queue_declare('');
         //绑定队列到交换机

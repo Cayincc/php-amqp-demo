@@ -23,3 +23,5 @@ Router::get('/workqueuesend', 'App\Controller\IndexController@workQueueSend');
 Router::get('/workqueuefairsend', 'App\Controller\IndexController@workQueueFairSend');
 
 Router::get('/publishSubscribeQueueSend', 'App\Controller\IndexController@publishSubscribeQueueSend');
+
+Router::get('/routingqueuesend', 'App\Controller\IndexController@routingQueueSend');

@@ -53,6 +53,6 @@ class WorkQueueFairTwoConsumer extends AbstractProcess
 
     public function isEnable(): bool
     {
-        return false;
+        return true;
     }
 }

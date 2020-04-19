@@ -47,6 +47,6 @@ class SimpleQueueConsumer extends AbstractProcess
 
     public function isEnable(): bool
     {
-        return false;
+        return true;
     }
 }

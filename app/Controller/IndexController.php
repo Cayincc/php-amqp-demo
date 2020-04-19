@@ -34,7 +34,7 @@ class IndexController extends AbstractController
 
     /**
      * 简单队列
-     *P ---- Queue ---- C
+     * P ---- Queue ---- C
      * @param RequestInterface $request
      * @param ResponseInterface $response
      * @return \Psr\Http\Message\ResponseInterface
@@ -193,6 +193,61 @@ class IndexController extends AbstractController
         
         $channel->close();
         $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '发送成功'
+        ]);
+    }
+
+    /**
+     * 路由模式 Routing
+     *                      orange
+     *                    | ------ Queue --- C1
+     *       (direct)     |
+     * P --- Exchange --- |
+     *                    | black
+     *                    | ------ |
+     *                    | green  |
+     *                    | ------ | --- Queue --- C2
+     *                    | orange |
+     *                    | ------ |
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function routingQueueSend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $available_key = [
+            'orange',
+            'black',
+            'green'
+        ];
+
+        if (!in_array($routing_key = (string)$request->input('routing_key'), $available_key)) {
+            return $response->json([
+                'code' => ErrorCode::UNPROCESSABLE_ENTITY,
+                'message' => '无效的routing_key'
+            ]);
+        }
+        $connection = AMQPConnection::getConnection();
+
+        try {
+            $channel = AMQPConnection::getChannel($connection);
+        } catch (\Exception $exception) {
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+
+        //声明direct类型交换机
+        $channel->exchange_declare('test_routing_exchange', AMQPCode::EXCHANGE_DIRECT, false, AMQPCode::DURABLE_TRUE, false, false, false, [], null);
+
+        $message = new AMQPMessage("hello routing.[{$routing_key}]");
+
+        $channel->basic_publish($message, 'test_routing_exchange', $routing_key);
 
         return $response->json([
             'code' => 200,
