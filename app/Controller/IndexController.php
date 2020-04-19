@@ -12,10 +12,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Constants\AMQPCode;
 use App\Constants\ErrorCode;
 use App\Utils\AMQPConnection;
 use Hyperf\HttpServer\Contract\ResponseInterface;
-use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 use Hyperf\HttpServer\Contract\RequestInterface;
 
@@ -44,7 +44,7 @@ class IndexController extends AbstractController
         $connection = AMQPConnection::getConnection();
         $cid = \Hyperf\Utils\Coroutine::id();
         try {
-            $channel = new AMQPChannel($connection->getConnection());
+            $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
@@ -54,7 +54,7 @@ class IndexController extends AbstractController
 
         $message = new AMQPMessage('hello simple.'.$cid);
 
-        $channel->queue_declare('test_simple_queue', false, false, false,false, false, [], null);
+        $channel->queue_declare('test_simple_queue', false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
 
         $channel->basic_publish($message, '', 'test_simple_queue');
 
@@ -82,7 +82,7 @@ class IndexController extends AbstractController
         var_dump(\Hyperf\Utils\Coroutine::inCoroutine());
         $connection = AMQPConnection::getConnection();
         try {
-            $channel = new AMQPChannel($connection->getConnection());
+            $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
@@ -91,7 +91,7 @@ class IndexController extends AbstractController
         }
 
 
-        $channel->queue_declare('test_work_queue', false, false, false,false, false, [], null);
+        $channel->queue_declare('test_work_queue', false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
 
         for ($i = 0; $i < (int)$request->input('num', 20); $i++) {
 //            $message = new AMQPMessage('hello workQueue.'.$i);
@@ -117,6 +117,12 @@ class IndexController extends AbstractController
     /**
      * 公平分发 fair-dispatch
      *
+     *                 | prefetch=1
+     *                 |------------C1
+     * P --- Queue ----|
+     *                 | prefetch=1
+     *                 |------------C2
+     *
      * @param RequestInterface $request
      * @param ResponseInterface $response
      * @return \Psr\Http\Message\ResponseInterface
@@ -125,7 +131,7 @@ class IndexController extends AbstractController
     {
         $connection = AMQPConnection::getConnection();
         try {
-            $channel = new AMQPChannel($connection->getConnection());
+            $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
@@ -134,7 +140,7 @@ class IndexController extends AbstractController
         }
 
 
-        $channel->queue_declare('test_work_queue_fair', false, false, false,false, false, [], null);
+        $channel->queue_declare('test_work_queue_fair', false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
 
         for ($i = 0; $i < (int)$request->input('num', 20); $i++) {
 //            $message = new AMQPMessage('hello workQueue.'.$i);
@@ -156,4 +162,41 @@ class IndexController extends AbstractController
         ]);
     }
 
+    /**
+     * 发布订阅模式 Publish/Subscribe
+     *
+     *       (fanout)     |--- Queue --- C1
+     * P --- Exchange ----|
+     *                    |--- Queue --- C2
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function publishSubscribeQueueSend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $connection = AMQPConnection::getConnection();
+        try {
+            $channel = AMQPConnection::getChannel($connection);
+        } catch (\Exception $exception) {
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+
+        //声明fanout类型交换机
+        $channel->exchange_declare('test_publish_subscribe_exchange', AMQPCode::EXCHANGE_FANOUT, false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
+
+        $message = new AMQPMessage('hello Publish/Subscribe.');
+        $channel->basic_publish($message, 'test_publish_subscribe_exchange', '');
+        
+        $channel->close();
+        $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '发送成功'
+        ]);
+    }
 }

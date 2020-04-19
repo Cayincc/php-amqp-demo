@@ -5,10 +5,12 @@ namespace App\Utils;
 use Hyperf\Amqp\Connection;
 use Hyperf\Amqp\Pool\PoolFactory;
 use Hyperf\Utils\ApplicationContext;
+use PhpAmqpLib\Channel\AMQPChannel;
 
 /**
  * Class AMQPConnection
  * @method static Connection getConnection(string $poolName = 'default');
+ * @method static AMQPChannel getChannel(Connection $connection);
  */
 
 class AMQPConnection {
@@ -41,4 +43,10 @@ class AMQPConnection {
 
         return $connection;
     }
+
+    private function getChannel(Connection $connection): AMQPChannel
+    {
+        return new AMQPChannel($connection->getConnection());
+    }
+
 }

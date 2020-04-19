@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Process;
 
+use App\Constants\AMQPCode;
 use App\Utils\AMQPConnection;
-use Hyperf\Amqp\Result;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Process\AbstractProcess;
 use Hyperf\Process\Annotation\Process;
-use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
@@ -23,11 +22,11 @@ class WorkQueueConsumer extends AbstractProcess
     {
         $logger = $this->container->get(StdoutLoggerInterface::class);
         $logger->info('workqueuec1 启动');
+
         $connection = AMQPConnection::getConnection();
+        $channel = AMQPConnection::getChannel($connection);
 
-        $channel = new AMQPChannel($connection->getConnection());
-
-        $channel->queue_declare(self::QUEUE_NAME, false, false, false,false, false, [], null);
+        $channel->queue_declare(self::QUEUE_NAME, false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
 
         $channel->basic_consume(self::QUEUE_NAME, '', false, false, false, false, function (AMQPMessage $message) use ($logger) {
             sleep(1);
