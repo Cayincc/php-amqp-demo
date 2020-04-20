@@ -345,4 +345,62 @@ class IndexController extends AbstractController
             'message' => '发送成功'
         ]);
     }
+
+    /**
+     * rpc模式 Request/reply pattern
+     *
+     *              request (rpc_queue)
+     *            | ------> Queue     ---> |
+     * client --->|                        | ---> server
+     *            | reply   (reply_to)     |
+     *            | <------ Queue     <--- |
+     *
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function rpcQueueClient(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $num = $request->input('num', 0);
+
+        $connection = AMQPConnection::getConnection();
+        try {
+            $channel = AMQPConnection::getChannel($connection);
+        } catch (\Exception $exception) {
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+        //生成关联id
+        $correlation_id = uniqid();
+        $rep = null;
+
+        //声明回复队列
+        [$reply_queue, ,] = $channel->queue_declare('', false, false, true, false, false, [], null);
+
+        //消费回复队列
+        $channel->basic_consume($reply_queue, '', false, true, false, false, static function (AMQPMessage $message) use ($correlation_id, &$rep) {
+            if ($message->get('correlation_id') === $correlation_id) {
+                $rep = $message->body;
+            }
+        });
+
+        $message = new AMQPMessage($num, [
+            'correlation_id' => $correlation_id,
+            'reply_to' => $reply_queue
+        ]);
+        //向请求队列发送消息
+        $channel->basic_publish($message, '', 'test_rpc_queue');
+
+        while (!$rep) {
+            $channel->wait();
+        }
+
+        return $response->json([
+            'code' => 200,
+            'message' => "fib({$num}) = {$rep}"
+        ]);
+    }
 }

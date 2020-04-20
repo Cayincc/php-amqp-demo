@@ -1,5 +1,5 @@
 <?php
-
+declare(strict_types=1);
 namespace App\JsonRpc\Consumers\Math;
 
 use App\JsonRpc\Contracts\Math\CalculatorServiceInterface;

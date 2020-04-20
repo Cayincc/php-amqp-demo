@@ -29,3 +29,5 @@ Router::get('/routingqueuesend', 'App\Controller\IndexController@routingQueueSen
 Router::get('/topicqueuesend', 'App\Controller\IndexController@topicQueueSend');
 
 Router::get('/hyperftopicqueuesend', 'App\Controller\IndexController@hyperfTopicQueueSend');
+
+Router::get('/rpcqueueclient', 'App\Controller\IndexController@rpcQueueClient');
