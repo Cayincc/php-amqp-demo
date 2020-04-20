@@ -254,4 +254,57 @@ class IndexController extends AbstractController
             'message' => '发送成功'
         ]);
     }
+
+    /**
+     * 主题模式 topic
+     *
+     *                     *.orange.*
+     *                    | ------ Queue --- C1
+     *       (topic)      |
+     * P --- Exchange --- |
+     *                    | *.*.rabbit
+     *                    | ------ |
+     *                    | lazy.# |
+     *                    | ------ | --- Queue --- C2
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function topicQueueSend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $routing_key = (string)$request->input('routing_key');
+        if (!preg_match('/^\w+\.\w+\.\w+$/', $routing_key)) {
+            return $response->json([
+                'code' => ErrorCode::UNPROCESSABLE_ENTITY,
+                'message' => '无效的routing_key'
+            ]);
+        }
+
+        $connection = AMQPConnection::getConnection();
+
+        try {
+            $channel = AMQPConnection::getChannel($connection);
+        } catch (\Exception $exception) {
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+        //声明topic类型交换机
+        $channel->exchange_declare('test_topic_exchange', AMQPCode::EXCHANGE_TOPIC, false, AMQPCode::DURABLE_TRUE, false, false, false, [], null);
+
+        $message = new AMQPMessage("hello topic.[{$routing_key}]");
+
+        $channel->basic_publish($message, 'test_topic_exchange', $routing_key);
+
+        $channel->close();
+
+        $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '发送成功'
+        ]);
+    }
 }

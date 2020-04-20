@@ -44,7 +44,7 @@ class PublishSubscribeQueueThreeConsumer extends AbstractProcess
             return $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
         }, null, []);
 
-        while (count($channel->callbacks) > 0) {
+        while ($channel->is_consuming()) {
             $channel->wait();
         }
 

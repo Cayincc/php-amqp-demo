@@ -12,39 +12,44 @@ use Hyperf\Process\Annotation\Process;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
- * @Process(name="PublishSubscribeQueueConsumer")
+ * @Process(name="TopicQueueThreeConsumer")
  */
-class PublishSubscribeQueueConsumer extends AbstractProcess
+class TopicQueueThreeConsumer extends AbstractProcess
 {
-    public const EXCHANGE_NAME = 'test_publish_subscribe_exchange';
+    public const EXCHANGE_NAME = 'test_topic_exchange';
 
-    public const QUEUE_NAME = 'test_publish_subscribe_queue_1';
+    public const QUEUE_NAME = 'test_topic_queue_3';
 
     public const PREFETCH_COUNT = 1;
+
+    public const ROUTING_KEY = [
+        '#'
+    ];
 
     public function handle(): void
     {
         $logger = $this->container->get(StdoutLoggerInterface::class);
-        $logger->info('pub_sub_queuec1 启动');
+
+        $logger->info('topicqueuec3 开启');
 
         $connection = AMQPConnection::getConnection();
-        $channel = AMQPConnection::getChannel($connection);
 
-        //声明fanout类型交换机
-        $channel->exchange_declare(self::EXCHANGE_NAME, AMQPCode::EXCHANGE_FANOUT, false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
+        $channel = AMQPConnection::getChannel($connection);
+        //声明topic类型交换机
+        $channel->exchange_declare(self::EXCHANGE_NAME, AMQPCode::EXCHANGE_TOPIC, false, AMQPCode::DURABLE_TRUE, false, false, false, [], null);
         //声明队列
         $channel->queue_declare(self::QUEUE_NAME, false, AMQPCode::DURABLE_TRUE, false, false, false, [], null);
-        //绑定队列到交换机
-        $channel->queue_bind(self::QUEUE_NAME, self::EXCHANGE_NAME, '', false, [], null);
-        //每个消费者发送确认消息之前，消息队列不发送下一个消息到消费者，一次只处理一个消息
-        //限制发送同一个消费者不得超过一条消息
+        //绑定队列和routing_key到交换机
+        foreach (self::ROUTING_KEY as $routing_key) {
+            $channel->queue_bind(self::QUEUE_NAME, self::EXCHANGE_NAME, $routing_key, false, [], null);
+        }
         $channel->basic_qos(null, self::PREFETCH_COUNT, null);
 
         $channel->basic_consume(self::QUEUE_NAME, '', false, false, false, false, static function (AMQPMessage $message) use ($logger) {
             sleep(1);
-            $logger->info('pub_sub_queuec1 消费:'.$message->body.'/'.$message->delivery_info['delivery_tag']);
+            $logger->info('topicqueuec3 消费:'.$message->body.'/'.$message->delivery_info['delivery_tag']);
             return $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
-        }, null, []);
+        }, null);
 
         while ($channel->is_consuming()) {
             $channel->wait();
@@ -53,8 +58,7 @@ class PublishSubscribeQueueConsumer extends AbstractProcess
         $channel->close();
         $connection->release();
 
-        $logger->info('pub_sub_queuec1 关闭');
-
+        $logger->info('topicqueuec3 关闭');
     }
 
     public function isEnable(): bool

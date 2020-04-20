@@ -33,7 +33,7 @@ class PublishSubscribeQueueTwoConsumer extends AbstractProcess
         //声明fanout类型交换机
         $channel->exchange_declare(self::EXCHANGE_NAME, AMQPCode::EXCHANGE_FANOUT, false, AMQPCode::DURABLE_TRUE, false,false, false, [], null);
         //声明队列
-        $channel->queue_declare(self::QUEUE_NAME, false, false, false, false, false, [], null);
+        $channel->queue_declare(self::QUEUE_NAME, false, AMQPCode::DURABLE_TRUE, false, false, false, [], null);
         //绑定队列到交换机
         $channel->queue_bind(self::QUEUE_NAME, self::EXCHANGE_NAME, '', false, [], null);
         //每个消费者发送确认消息之前，消息队列不发送下一个消息到消费者，一次只处理一个消息
@@ -46,7 +46,7 @@ class PublishSubscribeQueueTwoConsumer extends AbstractProcess
             return $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
         }, null, []);
 
-        while (count($channel->callbacks) > 0) {
+        while ($channel->is_consuming()) {
             $channel->wait();
         }
 
