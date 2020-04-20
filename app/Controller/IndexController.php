@@ -12,10 +12,13 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Amqp\Producer\TopicProducer;
 use App\Constants\AMQPCode;
 use App\Constants\ErrorCode;
 use App\Utils\AMQPConnection;
+use Hyperf\Amqp\Producer;
 use Hyperf\HttpServer\Contract\ResponseInterface;
+use Hyperf\Utils\ApplicationContext;
 use PhpAmqpLib\Message\AMQPMessage;
 use Hyperf\HttpServer\Contract\RequestInterface;
 
@@ -301,6 +304,41 @@ class IndexController extends AbstractController
         $channel->close();
 
         $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '发送成功'
+        ]);
+    }
+
+    /**
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function hyperfTopicQueueSend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $routing_key = (string)$request->input('routing_key');
+        if (!preg_match('/^\w+\.\w+\.\w+$/', $routing_key)) {
+            return $response->json([
+                'code' => ErrorCode::UNPROCESSABLE_ENTITY,
+                'message' => '无效的routing_key'
+            ]);
+        }
+
+        $data = [
+            'routingKey' => $routing_key,
+            'payload'=> "hello hyperf topic.[{$routing_key}]"
+        ];
+        $message = new TopicProducer($data);
+        $producer = ApplicationContext::getContainer()->get(Producer::class);
+
+        if (!$producer->produce($message)) {
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => '发送失败'
+            ]);
+        }
 
         return $response->json([
             'code' => 200,

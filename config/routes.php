@@ -27,3 +27,5 @@ Router::get('/publishSubscribeQueueSend', 'App\Controller\IndexController@publis
 Router::get('/routingqueuesend', 'App\Controller\IndexController@routingQueueSend');
 
 Router::get('/topicqueuesend', 'App\Controller\IndexController@topicQueueSend');
+
+Router::get('/hyperftopicqueuesend', 'App\Controller\IndexController@hyperfTopicQueueSend');
