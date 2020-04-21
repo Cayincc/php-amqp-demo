@@ -31,3 +31,9 @@ Router::get('/topicqueuesend', 'App\Controller\IndexController@topicQueueSend');
 Router::get('/hyperftopicqueuesend', 'App\Controller\IndexController@hyperfTopicQueueSend');
 
 Router::get('/rpcqueueclient', 'App\Controller\IndexController@rpcQueueClient');
+
+Router::get('/txsend', 'App\Controller\IndexController@txSend');
+
+Router::get('/confirmsend', 'App\Controller\IndexController@confirmSend');
+
+Router::get('/confirmmandatorysend', 'App\Controller\IndexController@confirmMandatorySend');

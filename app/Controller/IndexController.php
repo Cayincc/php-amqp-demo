@@ -17,6 +17,7 @@ use App\Constants\AMQPCode;
 use App\Constants\ErrorCode;
 use App\Utils\AMQPConnection;
 use Hyperf\Amqp\Producer;
+use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\Utils\ApplicationContext;
 use PhpAmqpLib\Message\AMQPMessage;
@@ -49,6 +50,7 @@ class IndexController extends AbstractController
         try {
             $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
+            $connection->release();
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => $exception->getMessage()
@@ -87,6 +89,7 @@ class IndexController extends AbstractController
         try {
             $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
+            $connection->release();
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => $exception->getMessage()
@@ -99,7 +102,7 @@ class IndexController extends AbstractController
         for ($i = 0; $i < (int)$request->input('num', 20); $i++) {
 //            $message = new AMQPMessage('hello workQueue.'.$i);
 //            $channel->basic_publish($message, '', 'test_work_queue');
-            go(function () use ($channel, $i) {
+            go(function () use (&$channel, $i) {
                 $id = \Hyperf\Utils\Coroutine::id();
                 $message = new AMQPMessage('hello workQueue.'.$i);
                 $channel->basic_publish($message, '', 'test_work_queue');
@@ -136,6 +139,7 @@ class IndexController extends AbstractController
         try {
             $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
+            $connection->release();
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => $exception->getMessage()
@@ -148,7 +152,7 @@ class IndexController extends AbstractController
         for ($i = 0; $i < (int)$request->input('num', 20); $i++) {
 //            $message = new AMQPMessage('hello workQueue.'.$i);
 //            $channel->basic_publish($message, '', 'test_work_queue');
-            go(function () use ($channel, $i) {
+            go(function () use (&$channel, $i) {
                 $message = new AMQPMessage('hello workQueueFair.'.$i);
                 $channel->basic_publish($message, '', 'test_work_queue_fair');
             });
@@ -182,6 +186,7 @@ class IndexController extends AbstractController
         try {
             $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
+            $connection->release();
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => $exception->getMessage()
@@ -239,6 +244,7 @@ class IndexController extends AbstractController
         try {
             $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
+            $connection->release();
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => $exception->getMessage()
@@ -289,6 +295,7 @@ class IndexController extends AbstractController
         try {
             $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
+            $connection->release();
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => $exception->getMessage()
@@ -333,7 +340,7 @@ class IndexController extends AbstractController
         $message = new TopicProducer($data);
         $producer = ApplicationContext::getContainer()->get(Producer::class);
 
-        if (!$producer->produce($message)) {
+        if (!$producer->produce($message, true)) {
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => '发送失败'
@@ -368,6 +375,7 @@ class IndexController extends AbstractController
         try {
             $channel = AMQPConnection::getChannel($connection);
         } catch (\Exception $exception) {
+            $connection->release();
             return $response->json([
                 'code' => ErrorCode::SERVER_ERROR,
                 'message' => $exception->getMessage()
@@ -401,6 +409,176 @@ class IndexController extends AbstractController
         return $response->json([
             'code' => 200,
             'message' => "fib({$num}) = {$rep}"
+        ]);
+    }
+
+    /**
+     * 事务模式 tx_select tx_commit tx_rollback
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function txSend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $connection = AMQPConnection::getConnection();
+
+        try {
+            $channel = AMQPConnection::getChannel($connection);
+        } catch (\Exception $exception) {
+            $connection->release();
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+
+        $channel->queue_declare('test_tx_queue', false, false, false, false, false, [], null);
+
+        $message = new AMQPMessage('hello tx.');
+
+        try {
+            //开启事务
+            $channel->tx_select();
+
+            $channel->basic_publish($message, '', 'test_tx_queue');
+            //提交事务
+            $channel->tx_commit();
+        } catch (\Exception $exception) {
+            //回滚事务
+            $channel->tx_rollback();
+            $channel->close();
+            $connection->release();
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+
+        $channel->close();
+        $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '发送成功'
+        ]);
+    }
+
+    /**
+     * confirm模式
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function confirmSend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $connection = AMQPConnection::getConnection();
+
+        try {
+            $channel = AMQPConnection::getChannel($connection);
+        } catch (\Exception $exception) {
+            $connection->release();
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+
+        $logger = $this->container->get(StdoutLoggerInterface::class);
+
+        $channel->queue_declare('test_confirm_queue', false, false, false, false, false, [
+            'x-max-length' => ['I', 10],
+            'x-overflow' => ['S', 'reject-publish'],
+        ], null);
+
+        $message = new AMQPMessage('hello confirm.');
+
+        $channel->confirm_select();
+
+        $channel->set_ack_handler(static function (AMQPMessage $message) use ($logger) {
+            $logger->info("[{$message->getDeliveryTag()}]({$message->body})消息发送成功");
+        });
+
+        $channel->set_nack_handler(static function (AMQPMessage $message) use ($logger) {
+            $logger->info("[{$message->getDeliveryTag()}]({$message->body})消息发送失败");
+        });
+
+        for ($i = 0; $i < (int)$request->input('num', 20); $i++) {
+            go(static function () use (&$channel, $message) {
+                $channel->basic_publish($message, '', 'test_confirm_queue');
+            });
+        }
+
+        $channel->wait_for_pending_acks(5);
+
+        $channel->close();
+        $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '请求成功'
+        ]);
+    }
+
+    /**
+     * confirm模式 (mandatory)
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    public function confirmMandatorySend(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $connection = AMQPConnection::getConnection();
+
+        try {
+            $channel = AMQPConnection::getChannel($connection);
+        } catch (\Exception $exception) {
+            $connection->release();
+            return $response->json([
+                'code' => ErrorCode::SERVER_ERROR,
+                'message' => $exception->getMessage()
+            ]);
+        }
+
+        $logger = $this->container->get(StdoutLoggerInterface::class);
+
+        $channel->queue_declare('test_confirm_queue_mandatory', false, false, false, false, false, [
+            'x-max-length' => ['I', 10],
+            'x-overflow' => ['S', 'reject-publish'],
+        ], null);
+
+        $message = new AMQPMessage('hello confirm mandatory.');
+
+        $channel->confirm_select();
+
+        $channel->set_ack_handler(static function (AMQPMessage $message) use ($logger) {
+            $logger->info("[{$message->getDeliveryTag()}]({$message->body})消息发送成功");
+        });
+
+        $channel->set_nack_handler(static function (AMQPMessage $message) use ($logger) {
+            $logger->info("[{$message->getDeliveryTag()}]({$message->body})消息发送失败");
+        });
+
+        $channel->set_return_listener(static function ($replyCode, $replyText, $exchange, $routingKey, AMQPMessage $message) use ($logger) {
+            $logger->info("{$replyCode} {$replyText} [{$message->getDeliveryTag()}]($message->body)");
+        });
+
+        for ($i = 0; $i < (int)$request->input('num', 20); $i++) {
+            go(static function () use (&$channel, $message) {
+                $channel->basic_publish($message, '', 'test_confirm_queue_mandatory', true);
+            });
+        }
+
+        $channel->wait_for_pending_acks_returns(5);
+
+        $channel->close();
+        $connection->release();
+
+        return $response->json([
+            'code' => 200,
+            'message' => '请求成功'
         ]);
     }
 }
