@@ -15,7 +15,10 @@ namespace App\Controller;
 use App\Amqp\Producer\TopicProducer;
 use App\Constants\AMQPCode;
 use App\Constants\ErrorCode;
+use App\Grpc\Clients\HelloworldClient;
 use App\Utils\AMQPConnection;
+use Grpc\Helloworld\HelloworldRequest;
+use Grpc\Helloworld\HelloworldResponse;
 use Hyperf\Amqp\Producer;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
@@ -579,6 +582,30 @@ class IndexController extends AbstractController
         return $response->json([
             'code' => 200,
             'message' => '请求成功'
+        ]);
+    }
+
+    public function hello(RequestInterface $request, ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $client = new HelloworldClient('127.0.0.1:9503', [
+            'credentials' => \Grpc\ChannelCredentials::createInsecure()
+        ]);
+
+        $grequest = new HelloworldRequest();
+        $grequest->setName('hyperf');
+        $grequest->setAge(26);
+
+        /**
+         * @var HelloworldResponse $response
+         */
+        [$gresponse, $status] = $client->sayHello($grequest);
+        var_dump($gresponse);
+        $message = $gresponse->getMessage();
+        $user = $gresponse->getUser();
+        $client->close();
+
+        return $response->json([
+            'message' => $user->getName()
         ]);
     }
 }

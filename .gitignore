@@ -11,3 +11,5 @@ vendor/
 .DS_Store
 *.lock
 .phpunit*
+grpc/Grpc/
+grpc/GPBMetadata/

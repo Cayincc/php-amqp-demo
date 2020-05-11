@@ -37,7 +37,10 @@
         "hyperf/model-cache": "~1.1.0",
         "hyperf/elasticsearch": "~1.1.0",
         "hyperf/tracer": "~1.1.0",
-        "jmhc/mongodb": "dev-master"
+        "jmhc/mongodb": "dev-master",
+        "hyperf/grpc": "^1.1",
+        "hyperf/grpc-server": "^1.1",
+        "hyperf/grpc-client": "^1.1"
     },
     "require-dev": {
         "swoft/swoole-ide-helper": "^4.2",
@@ -58,7 +61,9 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/"
+            "App\\": "app/",
+            "GPBMetadata\\": "grpc/GPBMetadata/",
+            "Grpc\\": "grpc/Grpc"
         },
         "files": []
     },
@@ -81,6 +86,9 @@
         "cs-fix": "php-cs-fixer fix $1",
         "analyse": "phpstan analyse --memory-limit 300M -l 0 -c phpstan.neon ./app ./config",
         "start": "php ./bin/hyperf.php start",
-        "init-proxy": "init-proxy.sh"
+        "init-proxy": [
+            "init-proxy.sh",
+            "./run_proto_gen.sh"
+        ]
     }
 }

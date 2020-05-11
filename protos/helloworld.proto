@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package grpc.helloworld;
+
+service Helloworld {
+    rpc sayHello(HelloworldRequest) returns (HelloworldResponse) {}
+}
+
+message HelloworldRequest {
+    string name = 1;
+    int32 age = 2;
+}
+
+message HelloworldResponse {
+    string message = 1;
+    HelloworldRequest user = 2;
+}

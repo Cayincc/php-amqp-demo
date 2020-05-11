@@ -37,3 +37,12 @@ Router::get('/txsend', 'App\Controller\IndexController@txSend');
 Router::get('/confirmsend', 'App\Controller\IndexController@confirmSend');
 
 Router::get('/confirmmandatorysend', 'App\Controller\IndexController@confirmMandatorySend');
+
+Router::get('/hello', 'App\Controller\IndexController@hello');
+
+//grpc 服务
+Router::addServer('grpc', static function () {
+    Router::addGroup('/grpc.helloworld', function () {
+        Router::post('/sayHello', 'App\Grpc\Services\HelloworldService@sayHello');
+    });
+});

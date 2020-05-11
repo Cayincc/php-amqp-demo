@@ -47,6 +47,16 @@ return [
                 'package_body_offset' => 4,
                 'package_max_length' => 1024 * 1024 * 2,
             ],*/
+        ],
+        [
+            'name' => 'grpc',
+            'type' => Server::SERVER_HTTP,
+            'host' => '0.0.0.0',
+            'port' => 9503,
+            'sock_type' => SWOOLE_SOCK_TCP,
+            'callbacks' => [
+                SwooleEvent::ON_REQUEST => [\Hyperf\GrpcServer\Server::class, 'onRequest'],
+            ],
         ]
     ],
     'settings' => [
